@@ -12,14 +12,12 @@ url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(url, key)
 
-
 # Response models for Swagger documentation
 class sbd_dept(BaseModel):
     sbd_dept: str | None
 
 class error_response(BaseModel):
     error: str
-
 
 @app.get("/check_sbd/{awsccid}")
 def check_sbd(awsccid: str | None = None) -> sbd_dept | error_response:
