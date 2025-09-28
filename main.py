@@ -3,6 +3,8 @@ import os
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from postgrest.exceptions import APIError
+import httpx
 
 app = FastAPI()
 load_dotenv()
@@ -23,7 +25,7 @@ class error_response(BaseModel):
 def check_sbd(awsccid: str | None = None) -> sbd_dept | error_response:
     if awsccid is None:
         return error_response(error="No AWSCCID provided")
-
+    
     try:
         response = (
             supabase
@@ -32,12 +34,16 @@ def check_sbd(awsccid: str | None = None) -> sbd_dept | error_response:
             .eq("awsccid", awsccid)
             .execute()
         )
+    except APIError as e:
+        return error_response(error=f"Database query failed: {str(e)}")
+    except httpx.ConnectError:
+        return error_response(error="Unable to connect to database")
+    except httpx.TimeoutException:
+        return error_response(error="Database request timed out")
 
-        if not response.data:
-            return error_response(error=f"No member found with AWSCCID: '{awsccid}'")
 
-        # AWS member found. Automatically returns None if sbd_dept is null in database
-        return sbd_dept(sbd_dept=response.data[0]["sbd_dept"])
+    if not response.data:
+        return error_response(error=f"No member found with AWSCCID: '{awsccid}'")
 
-    except Exception as e:
-        return error_response(error=f"Unexpected error: {str(e)}")
+    # AWS member found. Automatically returns None if sbd_dept is null in database
+    return sbd_dept(sbd_dept=response.data[0]["sbd_dept"])
